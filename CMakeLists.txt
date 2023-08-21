@@ -2,9 +2,6 @@ cmake_minimum_required(VERSION 3.25)
 project(qwt)
 
 set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTORCC ON)
-set(CMAKE_AUTOUIC ON)
-
 
 find_package(Qt5
         COMPONENTS
@@ -29,8 +26,8 @@ message("qwt sources dir: ${qwt_src}")
 message("qwt classincludes dir: ${qwt_classincludes}")
 
 file(GLOB QWT_SOURCES
-    LIST_DIRECTORIES true
-    RELATIVE ${PROJECT_SOURCE_DIR}
+        LIST_DIRECTORIES true
+        RELATIVE ${PROJECT_SOURCE_DIR}
         ${qwt_src}/*.cpp
 )
 
@@ -48,12 +45,18 @@ file(GLOB QWT_CLASSINCLUDES
 
 list(REMOVE_ITEM QWT_CLASSINCLUDES classincludes/classincludes.pro)
 
+if (WIN32)
+    set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
+endif()
 
 add_library(qwt SHARED)
 
+include(GenerateExportHeader)
+generate_export_header(qwt)
+
 target_sources(qwt
         PRIVATE
-            ${QWT_SOURCES}
+        ${QWT_SOURCES}
         PUBLIC FILE_SET qwt_header_set  TYPE HEADERS  BASE_DIRS ${qwt_src} FILES ${QWT_HEADERS}
         INTERFACE FILE_SET qwt_classincludes_set TYPE HEADERS BASE_DIRS ${qwt_classincludes} FILES ${QWT_CLASSINCLUDES}
 )
@@ -80,18 +83,48 @@ target_link_libraries(qwt
 
 include(GNUInstallDirs)
 
-set(CMAKE_INSTALL_PREFIX ${CMAKE_CURRENT_BINARY_DIR}/install/ CACHE PATH "install prefix" FORCE)
-
 install(TARGETS qwt
         EXPORT Qwt
+        CONFIGURATIONS Release
         FILE_SET qwt_header_set
         FILE_SET qwt_classincludes_set
+        ARCHIVE DESTINATION ${CMake_install_LIBDIR}
+)
+
+install(TARGETS qwt
+        CONFIGURATIONS Debug
+        ARCHIVE DESTINATION ${CMake_install_LIBDIR}
 )
 
 install(EXPORT Qwt
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Qwt
         NAMESPACE Qwt::
 )
 
-install(FILES qwt-config.cmake DESTINATION ${CMAKE_INSTALL_LIBDIR})
+#install(FILES qwt-config.cmake
+#        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Qwt/)
+
+include(CMakePackageConfigHelpers)
+
+set(INSTALL_DIR ./
+        CACHE PATH "Location of installation" )
+
+set(LIB_INSTALL_DIR ${CMAKE_INSTALL_LIBDIR}
+        CACHE PATH "Location of header files" )
+
+set(INCLUDE_INSTALL_DIR ${CMAKE_INSTALL_INCLUDEDIR}
+        CACHE PATH "Location of header files" )
+
+configure_package_config_file(QwtConfig.cmake.in
+        ${CMAKE_CURRENT_BINARY_DIR}/QwtConfig.cmake
+        INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Qwt
+        PATH_VARS
+        INSTALL_DIR
+        LIB_INSTALL_DIR
+        INCLUDE_INSTALL_DIR
+)
+
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/QwtConfig.cmake
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Qwt/)
+
 
